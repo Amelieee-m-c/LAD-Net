@@ -1,9 +1,10 @@
-# LAD-Net 重現 — 只有架構,沒有資料
+# LAD-Net 重現 — 架構完成,主要資料集缺失,泛化測試部分可做
 
 ![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![PyTorch](https://img.shields.io/badge/PyTorch-CUDA-EE4C2C?logo=pytorch&logoColor=white)
-![Data](https://img.shields.io/badge/data-unavailable-e05d44)
-![Reproduction](https://img.shields.io/badge/status-architecture--only-e05d44)
+![Data](https://img.shields.io/badge/AppleSet6-unavailable-e05d44)
+![Data](https://img.shields.io/badge/Tomato9-partial-dbab09)
+![Reproduction](https://img.shields.io/badge/status-partial-dbab09)
 ![License](https://img.shields.io/badge/license-MIT-2ea44f)
 
 重現的論文:
@@ -13,32 +14,82 @@
 
 ## 重現結果
 
-沒有 accuracy/F1/latency 這些數字——論文的三個資料集都拿不到(詳見下方),
-所以完全沒有訓練過。唯一能比較的是架構規模:
+**主要實驗(AppleSet6,Table 7/8/9)**:沒有數字——資料集拿不到,完全沒
+訓練過。唯一能比較的是架構規模:
 
 | 指標 | 論文 | 重現結果 |
 |---|---|---|
 | 參數量 | 約 0.32M | 356,400(+11%) |
 | 模型大小 | 1.25 MB | 約 1.43 MB(+14%) |
 
+**泛化測試(Tomato9,Table 10)**:拿到真正的 AI Challenger 2018 原始
+資料集,組出了 Tomato9 的 9 個可用類別(缺 Bacterial_spot,詳見下方
+「Tomato9 資料來源」),用論文 Table 6 的協定訓練(Adam、lr=5e-4、
+batch=32、cosine annealing、200 epochs):
+
+| 指標 | 論文 | 重現結果 |
+|---|---|---|
+| Accuracy | 97.92% | **97.73%** |
+| Precision(macro) | — | 96.97% |
+| Recall(macro) | — | 94.37% |
+| F1(macro) | — | 95.54% |
+
+差距只有 0.19 個百分點,雖然缺了 Bacterial_spot 這一類(資料集本身的
+限制,不是重現的問題),整體還是重現得非常準確。表現最差的是
+`Target_Spot`(F1 只有 0.83),這個類別總共只有 74 張圖,樣本數太少。
+
 `src/model.py::LADNet` 的 forward pass 已經驗證過(`python src/model.py`
-可以直接跑),參數量跟論文宣稱的數字差距約 11%——比 ConViTX 重現的參數量
-差距更接近,但還是沒有完全對上,因為論文有幾個架構細節沒有寫清楚(詳見
-下方「已知偏差」)。
+可以直接跑),參數量跟論文宣稱的數字差距約 11%。
 
-## 範圍說明:只有架構,沒有跑過任何訓練或評估
-
-論文的三個資料集,在這個環境裡全部都拿不到:
+## 主要資料集狀況(AppleSet6 / LateAppleSet)
 
 | 資料集 | 用途 | 狀態 |
 |---|---|---|
 | **AppleSet6**(原始 821 張 / 增強後 11,820 張,6 類) | 主要實驗 — Table 7、8、9 | ❌ 作者自己在乾縣蘋果監測站拍的私有資料集,論文裡完全沒有提供任何公開下載連結 |
 | **LateAppleSet**(5 類) | 泛化測試 — Table 10 | ❌ 名義上公開,但放在百度 AI Studio 上;`aistudio.baidu.com` 回傳 HTTP 403(需要登入),這個環境沒有帳號憑證 |
-| **Tomato9**(9 類,AI Challenger 2018 子集) | 泛化測試 — Table 10 | ❌ AI Challenger 官網(`challenger.ai`)已經下線(連線被拒絕),現存的只剩百度網盤分享(提取碼 "iksk"),一樣有登入門檻 |
 
-依照使用者的決定,沒有用替代資料集湊數(例如用別的公開蘋果葉病害資料集
-取代 LateAppleSet)——這個 repo **只做架構實作跟驗證**:確認 forward pass
-的張量形狀、比對參數量跟論文宣稱的規模。
+## Tomato9 資料來源與處理(2026-07-29 更新)
+
+使用者提供了 AI Challenger 2018 農作物病害辨識資料集的原始檔案(train +
+validation + testA + testB,共 4 個 zip,約 4.1GB,RAR 打包)。testA/testB
+沒有附標籤(比賽保留用的),只有 train(31,718 張)和 validation(4,540
+張)有完整的 `disease_class` 標註。
+
+**類別對照表**來源:[foamliu/Crop-Disease-Detection](https://github.com/foamliu/Crop-Disease-Detection)
+的 `labels.csv`(61 類的「作物-病害-嚴重程度」標準命名)。番茄對應
+class ID 41(healthy)、42-43(白粉病)、44-45(細菌性斑點病)、46-47(早疫病)、
+48-49(晚疫病)、50-51(葉黴病)、52-53(斑點病)、54-55(斑枯病)、
+56-57(紅蜘蛛)、58-59(黃化捲葉病毒)、60(花葉病毒)。
+
+`data_prep/extract_tomato9.py` 把一般/嚴重兩個等級合併成同一類,並且
+**排除白粉病(42-43)**——PlantVillage 的番茄分類本來就沒有白粉病,排除
+它之後,AI Challenger 的番茄子集(11 個基礎類別)剛好變成 Tomato9(9 種
+病害 + healthy = 10 類),跟論文命名完全吻合。
+
+**已知資料限制**:實際檢查發現 class 44/45(細菌性斑點病)在原始資料裡
+幾乎是空的(train 只有 1 張、val 0 張)。查資料時看到社群文章提過競賽
+主辦方後來把 44、45 這兩類直接刪除,這裡的結果驗證了這件事——不是
+`extract_tomato9.py` 抓漏,是 AI Challenger 這個資料集本身的限制。目前
+的處理方式是 `data_prep/make_tomato9_split.py` 把 `Tomato___Bacterial_spot`
+排除在訓練切分之外,實際訓練用的是其他 9 類(8 種病害 + healthy)。
+
+用 `data_prep/make_tomato9_split.py` 依照論文 Table 6 附近提到的
+4:1:1 比例(跟 AppleSet6 主實驗一樣)做 train/val/test 切分:
+
+| 類別 | train | val | test |
+|---|---|---|---|
+| Tomato___Early_blight | 528 | 132 | 132 |
+| Tomato___Late_blight | 1046 | 262 | 261 |
+| Tomato___Leaf_Mold | 503 | 126 | 126 |
+| Tomato___Septoria_leaf_spot | 935 | 234 | 234 |
+| Tomato___Spider_mites | 619 | 155 | 155 |
+| Tomato___Target_Spot | 49 | 12 | 13 |
+| Tomato___Tomato_Yellow_Leaf_Curl_Virus | 2961 | 740 | 741 |
+| Tomato___Tomato_mosaic_virus | 199 | 50 | 49 |
+| Tomato___healthy | 921 | 230 | 230 |
+
+用 `src/train.py` 訓練(Adam、lr=5e-4、batch=32、cosine annealing、200
+epochs,對應論文 Table 6),結果見上方「重現結果」。
 
 ## 已知偏差 / 論文本身沒講清楚的地方
 
@@ -71,20 +122,24 @@
   `CBAM`/`ChannelAttention`/`SpatialAttention`、`CBLR`、`LRCBAM`、
   `LADInception`、`LADNet`。直接執行(`python src/model.py`)可以跑
   forward pass 的形狀/參數量驗證。
+- `src/train.py` — 訓練腳本,照論文 Table 6 的協定(Adam、lr=5e-4、
+  batch=32、cosine annealing、200 epochs)。
+- `data_prep/extract_tomato9.py` — 從 AI Challenger 2018 原始標註 JSON
+  裡篩出 Tomato9 對應的類別,合併嚴重程度。
+- `data_prep/make_tomato9_split.py` — 對 Tomato9 做 4:1:1 的
+  train/val/test 切分。
 
-## 如果之後拿到 AppleSet6 或類似的資料集
+## 如果之後拿到 AppleSet6 或 LateAppleSet
 
-`LADNet(num_classes=N)` 可以接受任意類別數。訓練腳本可以參考
-`PiTLiD_repro/src/train_apple_pitlid.py` /
-`ConViTX_repro/src/train_plantvillage.py` 的寫法(Adam、lr=5e-4、
-batch=32、cosine-annealing LR,對應 Table 6,200 epochs),等真的拿到
-資料之後這會是下一步。
+`LADNet(num_classes=N)` 可以接受任意類別數,`src/train.py` 可以直接套用
+在任何符合 `ImageFolder` 結構(train/val/test 各自一個資料夾,底下按類別
+分子資料夾)的資料集上,只需要調整 `--data_dir` 和 `--num_classes`。
 
 ## 環境需求
 
-Python 3.10+、PyTorch(建議 CUDA 版)。沒有其他依賴——這個 repo 目前只有
-架構程式碼,還沒有訓練/資料處理流程。
+Python 3.10+、PyTorch(建議 CUDA 版)、scikit-learn、matplotlib。
 
 ## 授權
 
-本 repo 程式碼採用 MIT 授權。
+本 repo 程式碼採用 MIT 授權。不包含任何資料集圖片——AI Challenger 2018
+資料集需要自行取得,原始授權見該資料集的使用條款。

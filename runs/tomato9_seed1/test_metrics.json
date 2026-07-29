@@ -1,0 +1,121 @@
+{
+  "accuracy": 0.9773312725399279,
+  "precision_macro": 0.9697163467347791,
+  "recall_macro": 0.943736797391143,
+  "f1_macro": 0.9554037950396645,
+  "confusion_matrix": [
+    [
+      113,
+      11,
+      1,
+      3,
+      0,
+      0,
+      2,
+      0,
+      2
+    ],
+    [
+      0,
+      258,
+      0,
+      3,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      1,
+      121,
+      4,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      233,
+      0,
+      1,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      3,
+      0,
+      149,
+      0,
+      2,
+      0,
+      1
+    ],
+    [
+      1,
+      0,
+      0,
+      0,
+      0,
+      10,
+      2,
+      0,
+      0
+    ],
+    [
+      0,
+      1,
+      0,
+      0,
+      2,
+      0,
+      738,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      48,
+      0
+    ],
+    [
+      0,
+      2,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      227
+    ]
+  ],
+  "class_names": [
+    "Tomato___Early_blight",
+    "Tomato___Late_blight",
+    "Tomato___Leaf_Mold",
+    "Tomato___Septoria_leaf_spot",
+    "Tomato___Spider_mites",
+    "Tomato___Target_Spot",
+    "Tomato___Tomato_Yellow_Leaf_Curl_Virus",
+    "Tomato___Tomato_mosaic_virus",
+    "Tomato___healthy"
+  ],
+  "classification_report": "                                        precision    recall  f1-score   support\n\n                 Tomato___Early_blight     0.9912    0.8561    0.9187       132\n                  Tomato___Late_blight     0.9451    0.9885    0.9663       261\n                    Tomato___Leaf_Mold     0.9680    0.9603    0.9641       126\n           Tomato___Septoria_leaf_spot     0.9549    0.9957    0.9749       234\n                 Tomato___Spider_mites     0.9803    0.9613    0.9707       155\n                  Tomato___Target_Spot     0.9091    0.7692    0.8333        13\nTomato___Tomato_Yellow_Leaf_Curl_Virus     0.9919    0.9960    0.9939       741\n          Tomato___Tomato_mosaic_virus     1.0000    0.9796    0.9897        49\n                      Tomato___healthy     0.9870    0.9870    0.9870       230\n\n                              accuracy                         0.9773      1941\n                             macro avg     0.9697    0.9437    0.9554      1941\n                          weighted avg     0.9777    0.9773    0.9770      1941\n",
+  "best_val_acc": 0.9783616692426584,
+  "trainable_params": 357219
+}
