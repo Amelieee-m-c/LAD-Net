@@ -60,6 +60,22 @@ list, kept in sync):
      it: 14->7) list kernel=3/stride=2 with no padding value given. Padding=0
      would give 13 and 6 respectively, not 14 and 7 -- we used padding=1 for
      both, which reproduces the table's stated output shapes exactly.
+  6. LR-CBAM's internal conv (Fig. 3c) was originally implemented as a plain
+     nxn conv, on the reading that "LR-CBAM" (unlike "AD Convolution" /
+     "LAD-Inception") doesn't name-check the AD decomposition. The paper's
+     own Conclusion states AD Convolution is meant to "take the place of all
+     standard convolutions," which settles this the other way -- CBLR (used
+     inside LR-CBAM) now decomposes any kernel_size>1 conv into a 1xk+kx1
+     asymmetric pair (kernel_size=1 stays a plain pointwise conv, since a 1x1
+     has no spatial extent to decompose). The two asymmetric sub-convs are
+     ordered to minimize params depending on whether the layer expands or
+     reduces channel count (see CBLR docstring) -- naively reusing ADConv's
+     fixed in->out/out->out order on an *expanding* layer like the 64->192
+     LR-CBAM would actually cost MORE than a plain 3x3 (147,456 vs 110,592
+     params), not less, so this isn't just "swap in the existing ADConv
+     class everywhere." Net effect: total params dropped from 356,400
+     (+11% vs the paper's ~320,000) to 294,960 (-8%) -- now under the
+     paper's number instead of over, and closer in magnitude either way.
 """
 import torch
 import torch.nn as nn
@@ -131,12 +147,34 @@ class ADConv(nn.Module):
 
 
 class CBLR(nn.Module):
-    """Conv + BatchNorm + Leaky-ReLU block (Fig. 3a)."""
+    """Conv + BatchNorm + Leaky-ReLU block (Fig. 3a).
+
+    Per the paper's conclusion ("AD Convolution... take the place of all
+    standard convolutions"), any kernel_size>1 here is decomposed into a
+    1xk + kx1 asymmetric pair rather than a plain nxn conv -- kernel_size=1
+    stays a plain pointwise conv (a 1x1 has no spatial extent to decompose).
+    The two spatial convs are ordered to minimize params: for a channel
+    *expansion* (in_ch < out_ch) the cheap channel-preserving step goes
+    first (in_ch->in_ch, then in_ch->out_ch); for a *reduction*
+    (in_ch >= out_ch) it's cheaper the other way around (in_ch->out_ch,
+    then out_ch->out_ch), matching ADConv's fixed order above.
+    """
 
     def __init__(self, in_ch: int, out_ch: int, kernel_size: int = 1,
                  stride: int = 1, padding: int = 0, negative_slope: float = 0.1):
         super().__init__()
-        self.conv = nn.Conv2d(in_ch, out_ch, kernel_size, stride=stride, padding=padding, bias=False)
+        if kernel_size == 1:
+            self.conv = nn.Conv2d(in_ch, out_ch, 1, stride=stride, bias=False)
+        elif in_ch < out_ch:
+            self.conv = nn.Sequential(
+                nn.Conv2d(in_ch, in_ch, (1, kernel_size), stride=(1, stride), padding=(0, padding), bias=False),
+                nn.Conv2d(in_ch, out_ch, (kernel_size, 1), stride=(stride, 1), padding=(padding, 0), bias=False),
+            )
+        else:
+            self.conv = nn.Sequential(
+                nn.Conv2d(in_ch, out_ch, (1, kernel_size), stride=(1, stride), padding=(0, padding), bias=False),
+                nn.Conv2d(out_ch, out_ch, (kernel_size, 1), stride=(stride, 1), padding=(padding, 0), bias=False),
+            )
         self.bn = nn.BatchNorm2d(out_ch)
         self.act = nn.LeakyReLU(negative_slope, inplace=True)
 
