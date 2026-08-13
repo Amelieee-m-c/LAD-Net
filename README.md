@@ -12,6 +12,27 @@
 > Classification", IEEE/ACM TCBB, 2023. 沒有找到官方程式碼;這是純粹從論文
 > 文字獨立重新實作的 clean-room 版本。
 
+## Pretrained Models
+
+Tomato9 訓練出的權重檔案不大(1.2~1.4MB),直接 commit 進 repo,不用另外
+發 Release:
+
+| 模型 | 架構版本 | Test Accuracy | 路徑 |
+|---|---|---|---|
+| `tomato9_seed1_adfix/best_model.pt` | 新架構(LR-CBAM 用 AD 分解,294,960 參數) | **97.73%** | [runs/tomato9_seed1_adfix/best_model.pt](runs/tomato9_seed1_adfix/best_model.pt) |
+| `tomato9_seed1/best_model.pt` | 舊架構(LR-CBAM 用標準卷積,356,400 參數) | 97.73% | [runs/tomato9_seed1/best_model.pt](runs/tomato9_seed1/best_model.pt) |
+
+載入方式:
+
+```python
+import torch
+from src.model import LADNet
+
+model = LADNet(num_classes=9)  # Tomato9
+model.load_state_dict(torch.load("tomato9_seed1_adfix/best_model.pt", map_location="cpu"))
+model.eval()
+```
+
 ## 重現結果
 
 **主要實驗(AppleSet6,Table 7/8/9)**:沒有數字——資料集拿不到,完全沒
